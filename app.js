@@ -48,11 +48,13 @@ passport.use(User.createStrategy());
 // passport.serializeUser(User.serializeUser());
 // passport.deserializeUser(User.deserializeUser());
 passport.serializeUser(function (user, done) {
-    done(null, user);
+    done(null, user.id);
 });
 
-passport.deserializeUser(function (user, done) {
-    done(null, user);
+passport.deserializeUser(function (id, done) {
+    User.findById(id, function (err, user) {
+        done(err, user);
+    });
 });
 
 passport.use(new GoogleStrategy({
@@ -90,11 +92,15 @@ app.get('/register', function (req, res) {
 });
 
 app.get('/secrets', function (req, res) {
-    if (req.isAuthenticated()) {
-        res.render('secrets');
-    } else {
-        res.redirect('/login');
-    }
+    User.find({ "secret": { $ne: null } }, function (err, foundUsers) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUsers) {
+                res.render("secrets", { usersWithSecrets: foundUsers });
+            }
+        }
+    });
 })
 
 app.get("/submit", function (req, res) {
@@ -108,18 +114,18 @@ app.get("/submit", function (req, res) {
 app.post("/submit", function (req, res) {
     const submittedText = req.body.secret;
     console.log(req.user.id);
-    // User.findById(req.user.id, function (err, foundUser) {
-    //     if (err) {
-    //         console.log(err);
-    //     } else {
-    //         if (foundUser) {
-    //             foundUser.secret = submittedText;
-    //             foundUser.save(function () {
-    //                 res.redirect('/secrets');
-    //             })
-    //         }
-    //     }
-    // })
+    User.findById(req.user.id, function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                foundUser.secret = submittedText;
+                foundUser.save(function () {
+                    res.redirect("/secrets");
+                });
+            }
+        }
+    });
 });
 
 app.get("/logout", (req, res) => {
